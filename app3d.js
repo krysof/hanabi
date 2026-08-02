@@ -6,7 +6,7 @@ import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPa
 const canvas=document.getElementById('scene');
 const mobile=innerWidth<700;
 const renderer=new THREE.WebGLRenderer({canvas,antialias:!mobile,powerPreference:'high-performance'});
-renderer.setPixelRatio(Math.min(devicePixelRatio,mobile?1.35:1.8));
+renderer.setPixelRatio(Math.min(devicePixelRatio,mobile?1.5:2));
 renderer.setSize(innerWidth,innerHeight);
 renderer.outputColorSpace=THREE.SRGBColorSpace;
 renderer.toneMapping=THREE.ACESFilmicToneMapping;
@@ -62,15 +62,15 @@ function makeSky(){
 
 const waterUniforms={time:{value:0},accent:{value:new THREE.Color(0x25527b)}};
 function makeWater(){
-  const geo=new THREE.PlaneGeometry(1800,1600,100,80);geo.rotateX(-Math.PI/2);
-  const mat=new THREE.ShaderMaterial({transparent:false,uniforms:waterUniforms,vertexShader:`uniform float time;varying vec3 vWorld;void main(){vec3 p=position;p.y+=sin(p.x*.035+time*1.2)*.65+sin(p.z*.027-time*.8)*.55;vWorld=p;gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.);}`,fragmentShader:`uniform vec3 accent;uniform float time;varying vec3 vWorld;void main(){float w=sin(vWorld.x*.09+vWorld.z*.04+time)*.5+.5;vec3 c=mix(vec3(.008,.018,.032),accent*.16,w*.24);gl_FragColor=vec4(c,1.);}`});
+  const geo=new THREE.PlaneGeometry(2400,3000,mobile?110:220,mobile?120:240);geo.rotateX(-Math.PI/2);
+  const mat=new THREE.ShaderMaterial({transparent:false,uniforms:waterUniforms,vertexShader:`uniform float time;varying vec3 vWorld;varying float vWave;void main(){vec3 p=position;float a=sin(p.x*.026+p.z*.011+time*.75);float b=sin(p.x*.061-p.z*.034-time*1.12);float c=sin(p.x*.13+p.z*.082+time*1.7);vWave=a*.52+b*.25+c*.08;p.y+=vWave;vWorld=p;gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.);}`,fragmentShader:`uniform vec3 accent;uniform float time;varying vec3 vWorld;varying float vWave;void main(){float depth=smoothstep(-1200.,700.,vWorld.z);float ripple=sin(vWorld.x*.055+vWorld.z*.023+sin(vWorld.z*.009)*1.8+time*.9)*.58+sin(vWorld.x*.11-vWorld.z*.047-time*1.4)*.28;float glint=pow(max(0.,ripple),28.)*.16;float horizon=pow(1.-depth,3.)*.08;vec3 deep=vec3(.004,.011,.022);vec3 near=accent*.17+vec3(.005,.011,.017);vec3 c=mix(deep,near,depth*.55)+accent*(vWave*.025)+vec3(.28,.42,.55)*(glint+horizon);gl_FragColor=vec4(c,1.);}`});
   const m=new THREE.Mesh(geo,mat);m.position.y=-2;m.receiveShadow=true;world.add(m);
 }
 
-function terrain(seed=1,height=65,distance=-430){
-  const g=new THREE.PlaneGeometry(1200,260,70,14);const p=g.attributes.position;
-  for(let i=0;i<p.count;i++){const x=p.getX(i),y=p.getY(i);const edge=(y+130)/260;const h=(Math.sin(x*.011+seed)+Math.sin(x*.027+seed*2)*.38+1.3)*height*edge;p.setZ(i,h)}
-  g.rotateX(-Math.PI/2);const m=new THREE.Mesh(g,new THREE.MeshStandardMaterial({color:0x050911,roughness:1}));m.position.set(0,-3,distance);m.receiveShadow=true;decor.add(m);return m;
+function terrain(seed=1,height=65,distance=-430,layer=0){
+  const g=new THREE.PlaneGeometry(1900,430,mobile?90:220,mobile?18:44),p=g.attributes.position;
+  for(let i=0;i<p.count;i++){const x=p.getX(i),y=p.getY(i),edge=THREE.MathUtils.smoothstep((y+215)/430,0,1);const ridge=Math.sin(x*.0063+seed)*.58+Math.sin(x*.0147+seed*1.73)*.27+Math.sin(x*.033+seed*3.1)*.11+Math.sin(x*.071+seed*.4)*.04;const valleys=Math.pow(Math.abs(Math.sin(x*.0031+seed)),1.7);p.setZ(i,Math.max(0,(ridge+1.08)*height*(.34+.66*edge)*(1-valleys*.18)))}
+  g.computeVertexNormals();g.rotateX(-Math.PI/2);const colors=[0x07101a,0x091421,0x0b1725],m=new THREE.Mesh(g,new THREE.MeshStandardMaterial({color:colors[Math.min(layer,2)],roughness:1,fog:true,flatShading:false}));m.position.set(0,-5,distance);m.receiveShadow=true;decor.add(m);return m;
 }
 function box(x,y,z,w,h,d,color=0x050810){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshStandardMaterial({color,roughness:.88}));m.position.set(x,y+h/2,z);m.castShadow=true;m.receiveShadow=true;decor.add(m);return m}
 function lightDot(x,y,z,color=0xffbf72,size=2){const s=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTexture,color,transparent:true,opacity:.55,depthWrite:false,blending:THREE.AdditiveBlending}));s.position.set(x,y,z);s.scale.setScalar(size);decor.add(s)}
@@ -122,7 +122,8 @@ function buildFestival(id){
     for(let x=-540;x<540;x+=rand(18,42)){const h=rand(22,110),z=rand(-420,-300);box(x,0,z,rand(16,36),h,rand(18,40),0x05070d);if(Math.random()<.7)for(let y=14;y<h;y+=15)lightDot(x+rand(-7,7),y,z+21,0xffb66a,1.5)}
     const tower=new THREE.Group();const mast=new THREE.Mesh(new THREE.CylinderGeometry(2,9,250,8),new THREE.MeshStandardMaterial({color:0x111722,metalness:.55}));mast.position.y=125;tower.add(mast);const deck=new THREE.Mesh(new THREE.CylinderGeometry(21,26,7,16),new THREE.MeshStandardMaterial({color:0x1e2937,emissive:0x315c7c,emissiveIntensity:.5}));deck.position.y=178;tower.add(deck);tower.position.set(250,0,-340);decor.add(tower);
   }else{
-    terrain(id==='suwa'?5:id==='omagari'?3:1,id==='suwa'?105:id==='nagaoka'?72:44,id==='suwa'?-520:-440);
+    const seed=id==='suwa'?5:id==='omagari'?3:1,base=id==='suwa'?42:id==='nagaoka'?32:29;
+    terrain(seed,base,-720,0);terrain(seed+9,base*1.32,-1030,1);terrain(seed+21,base*1.7,-1370,2);
     for(let x=-520;x<520;x+=rand(20,38)){box(x,0,rand(-390,-320),rand(14,30),rand(7,25),20);if(Math.random()<.75)lightDot(x,rand(7,20),-305,0xffbd73,1.2)}
     if(id==='nagaoka'){const bridge=new THREE.Group();const deck=box(0,0,0,1,1,1);decor.remove(deck);const beam=new THREE.Mesh(new THREE.BoxGeometry(900,4,10),new THREE.MeshStandardMaterial({color:0x121b26,metalness:.5}));beam.position.y=18;bridge.add(beam);for(let x=-430;x<=430;x+=70){const p=new THREE.Mesh(new THREE.BoxGeometry(3,22,3),beam.material);p.position.set(x,7,0);bridge.add(p);const lamp=new THREE.PointLight(0xffc16e,.25,25);lamp.position.set(x,22,0);bridge.add(lamp)}bridge.position.z=-215;decor.add(bridge)}
     if(id==='omagari'){for(let x=-400;x<400;x+=12)lightDot(x,5,-210,0xff925f,.9)}
@@ -173,13 +174,13 @@ function flash(pos,color){const light=new THREE.PointLight(color,mobile?18:42,34
 function launch(x=rand(-220,220),target=rand(95,205),type=selectedType,color=selectedColor,z=rand(-190,-35)){rockets.push(new Rocket(x,target,type,color,z))}
 function waterMine(x,color='gold'){const p=new THREE.Vector3(x,6,rand(-80,70));bursts.push(new Burst(p,'phoenix',color,.8));flash(p,colorFor(color));playBoom(x/260)}
 
-const cameraDirector={index:-1,shotTime:0,focus:new THREE.Vector3(0,100,0),lookNow:new THREE.Vector3(),shots:[
+const cameraDirector={index:-1,shotTime:0,phase:'shot',transitionTime:0,transitionDuration:4.6,focus:new THREE.Vector3(0,100,0),lookNow:new THREE.Vector3(),fromPos:new THREE.Vector3(),fromLook:new THREE.Vector3(),c1:new THREE.Vector3(),c2:new THREE.Vector3(),targetIndex:0,fromFov:49,shots:[
   {name:'ESTABLISHING',a:new THREE.Vector3(0,24,224),b:new THREE.Vector3(-10,28,204),la:new THREE.Vector3(0,76,-42),lb:new THREE.Vector3(0,96,-70),fov:49,duration:12},
   {name:'OVER SHOULDER',a:new THREE.Vector3(-56,36,151),b:new THREE.Vector3(-42,39,134),la:new THREE.Vector3(28,89,-65),lb:new THREE.Vector3(42,108,-90),fov:55,duration:10},
   {name:'LOW REVEAL',a:new THREE.Vector3(76,8,166),b:new THREE.Vector3(54,16,142),la:new THREE.Vector3(-16,102,-86),lb:new THREE.Vector3(-8,125,-120),fov:62,duration:8},
   {name:'PROFILE TRACK',a:new THREE.Vector3(-118,31,130),b:new THREE.Vector3(-98,35,119),la:new THREE.Vector3(15,78,-70),lb:new THREE.Vector3(28,103,-98),fov:50,duration:11},
   {name:'AERIAL ORBIT',a:new THREE.Vector3(168,104,236),b:new THREE.Vector3(104,126,190),la:new THREE.Vector3(0,82,-34),lb:new THREE.Vector3(-8,108,-75),fov:46,duration:13}
-],next(force=false,manualIndex=null){if(currentFestival==='custom'&&manualIndex===null)return;this.index=manualIndex!==null?manualIndex:(this.index+1)%this.shots.length;this.shotTime=0;const s=this.shots[this.index];camera.position.copy(s.a);camera.fov=s.fov;camera.updateProjectionMatrix();camera.lookAt(s.la);document.getElementById('qualityLabel').textContent=s.name;document.querySelectorAll('#cameraRail button').forEach((b,i)=>b.classList.toggle('active',i===this.index));const cut=document.getElementById('cameraCut');cut.querySelector('small').textContent=`CAMERA 0${this.index+1}`;cut.querySelector('b').textContent=s.name;cut.classList.remove('show');requestAnimationFrame(()=>cut.classList.add('show'));clearTimeout(this.cutTimer);this.cutTimer=setTimeout(()=>cut.classList.remove('show'),1050)},update(dt){if(currentFestival==='custom')return;const s=this.shots[this.index];this.shotTime+=dt;if(this.shotTime>=s.duration){this.next();return}const p=this.shotTime/s.duration,t=p*p*(3-2*p);camera.position.lerpVectors(s.a,s.b,t);this.lookNow.lerpVectors(s.la,s.lb,t);camera.lookAt(this.lookNow)}};
+],announce(i,moving=false){const s=this.shots[i];document.getElementById('qualityLabel').textContent=moving?`TRACK → ${s.name}`:s.name;document.querySelectorAll('#cameraRail button').forEach((b,n)=>b.classList.toggle('active',n===i));const cut=document.getElementById('cameraCut');cut.querySelector('small').textContent=moving?'CONTINUOUS CAMERA':`CAMERA 0${i+1}`;cut.querySelector('b').textContent=s.name;cut.classList.remove('show');requestAnimationFrame(()=>cut.classList.add('show'));clearTimeout(this.cutTimer);this.cutTimer=setTimeout(()=>cut.classList.remove('show'),1050)},next(force=false,manualIndex=null){if(currentFestival==='custom'&&manualIndex===null)return;const i=manualIndex!==null?manualIndex:(this.index+1)%this.shots.length,s=this.shots[i];if(force||this.index<0){this.index=i;this.phase='shot';this.shotTime=0;camera.position.copy(s.a);this.lookNow.copy(s.la);camera.fov=s.fov;camera.updateProjectionMatrix();camera.lookAt(this.lookNow);this.announce(i);return}this.phase='transition';this.targetIndex=i;this.transitionTime=0;this.fromPos.copy(camera.position);this.fromLook.copy(this.lookNow);this.fromFov=camera.fov;const distance=this.fromPos.distanceTo(s.a);this.transitionDuration=THREE.MathUtils.clamp(distance/34,3.6,6.2);const travel=s.a.clone().sub(this.fromPos);this.c1.copy(this.fromPos).addScaledVector(travel,.3).add(new THREE.Vector3(0,Math.min(38,distance*.16),0));this.c2.copy(this.fromPos).addScaledVector(travel,.72).add(new THREE.Vector3(0,Math.min(24,distance*.1),0));this.announce(i,true)},update(dt){if(currentFestival==='custom'&&this.phase!=='transition')return;if(this.phase==='transition'){this.transitionTime+=dt;const raw=Math.min(1,this.transitionTime/this.transitionDuration),t=raw*raw*(3-2*raw),u=1-t,s=this.shots[this.targetIndex];camera.position.copy(this.fromPos).multiplyScalar(u*u*u).addScaledVector(this.c1,3*u*u*t).addScaledVector(this.c2,3*u*t*t).addScaledVector(s.a,t*t*t);this.lookNow.lerpVectors(this.fromLook,s.la,t);camera.fov=THREE.MathUtils.lerp(this.fromFov,s.fov,t);camera.updateProjectionMatrix();camera.lookAt(this.lookNow);if(raw>=1){this.index=this.targetIndex;this.phase='shot';this.shotTime=0;this.announce(this.index)}return}const s=this.shots[this.index];this.shotTime+=dt;if(this.shotTime>=s.duration){this.next();return}const p=this.shotTime/s.duration,t=p*p*(3-2*p);camera.position.lerpVectors(s.a,s.b,t);this.lookNow.lerpVectors(s.la,s.lb,t);camera.lookAt(this.lookNow)}};
 cameraDirector.next(true);
 
 function choreograph(grand=false){const colors=Object.keys(palettes);
@@ -227,6 +228,6 @@ function updateScene(dt){waterUniforms.time.value+=dt;cameraDirector.update(dt);
 }
 function animate(){requestAnimationFrame(animate);updateScene(Math.min(.035,clock.getDelta()));composer.render()}
 animate();
-if(import.meta.env.DEV){window.__hanabiStep=(frames=1)=>{for(let i=0;i<frames;i++)updateScene(1/60);composer.render()};window.__hanabiState=()=>({booms:boomBuffers.length,launches:launchBuffers.length,audio:audioCtx?.state,camera:cameraDirector.shots[cameraDirector.index]?.name})}
+if(import.meta.env.DEV){window.__hanabiStep=(frames=1)=>{for(let i=0;i<frames;i++)updateScene(1/60);composer.render()};window.__hanabiState=()=>({booms:boomBuffers.length,launches:launchBuffers.length,audio:audioCtx?.state,camera:cameraDirector.shots[cameraDirector.index]?.name,phase:cameraDirector.phase,position:camera.position.toArray()})}
 
-addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);composer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,innerWidth<700?1.35:1.8))});
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);composer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,innerWidth<700?1.5:2))});
