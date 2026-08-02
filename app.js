@@ -162,9 +162,14 @@
   requestAnimationFrame(render);
 
   function initAudio(){
-    if(audio)return; audio=new (window.AudioContext||window.webkitAudioContext)();master=audio.createGain();master.gain.value=.56;master.connect(audio.destination);
+    if(audio)return; audio=new (window.AudioContext||window.webkitAudioContext)();master=audio.createGain();master.gain.value=.68;master.connect(audio.destination);
   }
-  function playLaunch(pan=0){if(!audio||!soundOn)return;const dur=.85,buf=audio.createBuffer(1,audio.sampleRate*dur,audio.sampleRate),d=buf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,2)*.28;const src=audio.createBufferSource();src.buffer=buf;const filter=audio.createBiquadFilter();filter.type='bandpass';filter.frequency.setValueAtTime(480,audio.currentTime);filter.frequency.exponentialRampToValueAtTime(1500,audio.currentTime+dur);const gain=audio.createGain();gain.gain.setValueAtTime(.18,audio.currentTime);gain.gain.exponentialRampToValueAtTime(.001,audio.currentTime+dur);const p=audio.createStereoPanner();p.pan.value=pan;src.connect(filter).connect(gain).connect(p).connect(master);src.start()}
+  function unlockAudio(){
+    initAudio();if(audio.state==='suspended')audio.resume();
+    // Starting a silent source inside the user gesture unlocks WebAudio on iOS/Safari.
+    const o=audio.createOscillator(),g=audio.createGain();g.gain.value=.00001;o.connect(g).connect(master);o.start();o.stop(audio.currentTime+.02);
+  }
+  function playLaunch(pan=0){if(!audio||!soundOn)return;if(audio.state==='suspended')audio.resume();const dur=1.05,buf=audio.createBuffer(1,audio.sampleRate*dur,audio.sampleRate),d=buf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,1.7)*.34;const src=audio.createBufferSource();src.buffer=buf;const filter=audio.createBiquadFilter();filter.type='bandpass';filter.frequency.setValueAtTime(420,audio.currentTime);filter.frequency.exponentialRampToValueAtTime(1900,audio.currentTime+dur);const gain=audio.createGain();gain.gain.setValueAtTime(.28,audio.currentTime);gain.gain.exponentialRampToValueAtTime(.001,audio.currentTime+dur);const p=audio.createStereoPanner();p.pan.value=pan;src.connect(filter).connect(gain).connect(p).connect(master);src.start();const whistle=audio.createOscillator(),wg=audio.createGain();whistle.type='sine';whistle.frequency.setValueAtTime(620,audio.currentTime);whistle.frequency.exponentialRampToValueAtTime(1480,audio.currentTime+.85);wg.gain.setValueAtTime(.075,audio.currentTime);wg.gain.exponentialRampToValueAtTime(.001,audio.currentTime+.9);whistle.connect(wg).connect(p);whistle.start();whistle.stop(audio.currentTime+.92)}
   function playBoom(pan=0,scale=1){if(!audio||!soundOn)return;const delay=.035,dur=2.2,buf=audio.createBuffer(1,audio.sampleRate*dur,audio.sampleRate),d=buf.getChannelData(0);for(let i=0;i<d.length;i++){const t=i/audio.sampleRate;d[i]=(Math.random()*2-1)*Math.exp(-t*2.8)*(1+Math.sin(t*78)*.45)}const src=audio.createBufferSource();src.buffer=buf;const low=audio.createBiquadFilter();low.type='lowpass';low.frequency.value=720;const gain=audio.createGain();gain.gain.setValueAtTime(.72*scale,audio.currentTime+delay);gain.gain.exponentialRampToValueAtTime(.001,audio.currentTime+dur);const p=audio.createStereoPanner();p.pan.value=pan;src.connect(low).connect(gain).connect(p).connect(master);src.start(audio.currentTime+delay);const sub=audio.createOscillator(),sg=audio.createGain();sub.type='sine';sub.frequency.setValueAtTime(58,audio.currentTime+delay);sub.frequency.exponentialRampToValueAtTime(28,audio.currentTime+1.1);sg.gain.setValueAtTime(.34*scale,audio.currentTime+delay);sg.gain.exponentialRampToValueAtTime(.001,audio.currentTime+1.25);sub.connect(sg).connect(master);sub.start(audio.currentTime+delay);sub.stop(audio.currentTime+1.3)}
 
   function choreograph(grand=false){
@@ -175,13 +180,13 @@
     else{const n=W<700?5:9;for(let i=0;i<n;i++)setTimeout(()=>launch(W*(.12+i*(.76/(n-1))),H*(.42-Math.sin(i/(n-1)*Math.PI)*.28),i%3===0?'willow':pick(types),colors[i%colors.length]),i*(W<700?165:105))}
   }
 
-  canvas.addEventListener('pointerdown',e=>{dragging=true;dragTime=0;launch(e.clientX,Math.max(80,Math.min(e.clientY,horizon-70)));});
+  canvas.addEventListener('pointerdown',e=>{unlockAudio();dragging=true;dragTime=0;launch(e.clientX,Math.max(80,Math.min(e.clientY,horizon-70)));});
   canvas.addEventListener('pointermove',e=>{if(!dragging)return;dragTime++;if(dragTime%7===0)launch(e.clientX,Math.max(80,Math.min(e.clientY,horizon-60)));});
   addEventListener('pointerup',()=>dragging=false);
   document.getElementById('launchBtn').onclick=e=>{e.stopPropagation();launch()};
   document.getElementById('types').onclick=e=>{const b=e.target.closest('button');if(!b)return;selectedType=b.dataset.type;document.querySelectorAll('#types button').forEach(x=>x.classList.toggle('active',x===b))};
   document.getElementById('palette').onclick=e=>{const b=e.target.closest('button');if(!b)return;selectedColor=b.dataset.color;document.querySelectorAll('.swatch').forEach(x=>x.classList.toggle('active',x===b))};
   document.getElementById('autoBtn').onclick=e=>{e.stopPropagation();auto=!auto;e.currentTarget.classList.toggle('active',auto);e.currentTarget.querySelector('.play-icon').textContent=auto?'Ⅱ':'▶';if(auto){showTimer=0;initAudio()}};
-  document.getElementById('soundBtn').onclick=e=>{e.stopPropagation();soundOn=!soundOn;e.currentTarget.classList.toggle('active',soundOn);document.getElementById('soundIcon').textContent=soundOn?'♪':'×';if(soundOn)initAudio()};
-  document.getElementById('enterBtn').onclick=()=>{initAudio();keepAwake();if(audio.state==='suspended')audio.resume();document.getElementById('startScreen').classList.add('hidden');setTimeout(()=>choreograph(true),520)};
+  document.getElementById('soundBtn').onclick=e=>{e.stopPropagation();soundOn=!soundOn;e.currentTarget.classList.toggle('active',soundOn);document.getElementById('soundIcon').textContent=soundOn?'♪':'×';if(soundOn)unlockAudio()};
+  document.getElementById('enterBtn').onclick=()=>{unlockAudio();keepAwake();document.getElementById('startScreen').classList.add('hidden');setTimeout(()=>choreograph(true),520)};
 })();
