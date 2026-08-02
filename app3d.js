@@ -173,13 +173,13 @@ function flash(pos,color){const light=new THREE.PointLight(color,mobile?18:42,34
 function launch(x=rand(-220,220),target=rand(95,205),type=selectedType,color=selectedColor,z=rand(-190,-35)){rockets.push(new Rocket(x,target,type,color,z))}
 function waterMine(x,color='gold'){const p=new THREE.Vector3(x,6,rand(-80,70));bursts.push(new Burst(p,'phoenix',color,.8));flash(p,colorFor(color));playBoom(x/260)}
 
-const cameraDirector={index:-1,timer:0,focus:new THREE.Vector3(0,100,0),fromPos:new THREE.Vector3(),toPos:new THREE.Vector3(),fromQ:new THREE.Quaternion(),toQ:new THREE.Quaternion(),progress:1,duration:2.4,shots:[
-  {name:'STORY WIDE',pos:new THREE.Vector3(0,24,224),look:new THREE.Vector3(0,79,-48),fov:49},
-  {name:'OVER SHOULDER',pos:new THREE.Vector3(-56,36,151),look:new THREE.Vector3(35,103,-82),fov:55},
-  {name:'GROUND LOW',pos:new THREE.Vector3(74,9,165),look:new THREE.Vector3(-12,114,-110),fov:63},
-  {name:'PROFILE',pos:new THREE.Vector3(-118,31,130),look:new THREE.Vector3(18,83,-80),fov:50},
-  {name:'AERIAL ORBIT',pos:new THREE.Vector3(168,104,236),look:new THREE.Vector3(0,83,-35),fov:46}
-],next(force=false,manualIndex=null){if(currentFestival==='custom'&&manualIndex===null)return;if(manualIndex!==null)this.index=manualIndex;else this.index=(this.index+1)%this.shots.length;const s=this.shots[this.index],dummy=new THREE.PerspectiveCamera();this.fromPos.copy(camera.position);this.toPos.copy(s.pos);this.fromQ.copy(camera.quaternion);dummy.position.copy(s.pos);dummy.lookAt(s.look);this.toQ.copy(dummy.quaternion);this.progress=force?1:0;this.duration=force?0:rand(1.15,1.9);this.timer=rand(4.6,7.2);camera.fov=s.fov;camera.updateProjectionMatrix();document.getElementById('qualityLabel').textContent=s.name;document.querySelectorAll('#cameraRail button').forEach((b,i)=>b.classList.toggle('active',i===this.index));const cut=document.getElementById('cameraCut');cut.querySelector('small').textContent=`CAMERA 0${this.index+1}`;cut.querySelector('b').textContent=s.name;cut.classList.remove('show');requestAnimationFrame(()=>cut.classList.add('show'));clearTimeout(this.cutTimer);this.cutTimer=setTimeout(()=>cut.classList.remove('show'),1200);if(force){camera.position.copy(s.pos);camera.quaternion.copy(this.toQ)}},update(dt){if(currentFestival==='custom')return;this.timer-=dt;if(this.timer<=0)this.next();if(this.progress<1){this.progress=Math.min(1,this.progress+dt/this.duration);const t=this.progress*this.progress*(3-2*this.progress);camera.position.lerpVectors(this.fromPos,this.toPos,t);camera.quaternion.slerpQuaternions(this.fromQ,this.toQ,t)}}};
+const cameraDirector={index:-1,shotTime:0,focus:new THREE.Vector3(0,100,0),lookNow:new THREE.Vector3(),shots:[
+  {name:'ESTABLISHING',a:new THREE.Vector3(0,24,224),b:new THREE.Vector3(-10,28,204),la:new THREE.Vector3(0,76,-42),lb:new THREE.Vector3(0,96,-70),fov:49,duration:12},
+  {name:'OVER SHOULDER',a:new THREE.Vector3(-56,36,151),b:new THREE.Vector3(-42,39,134),la:new THREE.Vector3(28,89,-65),lb:new THREE.Vector3(42,108,-90),fov:55,duration:10},
+  {name:'LOW REVEAL',a:new THREE.Vector3(76,8,166),b:new THREE.Vector3(54,16,142),la:new THREE.Vector3(-16,102,-86),lb:new THREE.Vector3(-8,125,-120),fov:62,duration:8},
+  {name:'PROFILE TRACK',a:new THREE.Vector3(-118,31,130),b:new THREE.Vector3(-98,35,119),la:new THREE.Vector3(15,78,-70),lb:new THREE.Vector3(28,103,-98),fov:50,duration:11},
+  {name:'AERIAL ORBIT',a:new THREE.Vector3(168,104,236),b:new THREE.Vector3(104,126,190),la:new THREE.Vector3(0,82,-34),lb:new THREE.Vector3(-8,108,-75),fov:46,duration:13}
+],next(force=false,manualIndex=null){if(currentFestival==='custom'&&manualIndex===null)return;this.index=manualIndex!==null?manualIndex:(this.index+1)%this.shots.length;this.shotTime=0;const s=this.shots[this.index];camera.position.copy(s.a);camera.fov=s.fov;camera.updateProjectionMatrix();camera.lookAt(s.la);document.getElementById('qualityLabel').textContent=s.name;document.querySelectorAll('#cameraRail button').forEach((b,i)=>b.classList.toggle('active',i===this.index));const cut=document.getElementById('cameraCut');cut.querySelector('small').textContent=`CAMERA 0${this.index+1}`;cut.querySelector('b').textContent=s.name;cut.classList.remove('show');requestAnimationFrame(()=>cut.classList.add('show'));clearTimeout(this.cutTimer);this.cutTimer=setTimeout(()=>cut.classList.remove('show'),1050)},update(dt){if(currentFestival==='custom')return;const s=this.shots[this.index];this.shotTime+=dt;if(this.shotTime>=s.duration){this.next();return}const p=this.shotTime/s.duration,t=p*p*(3-2*p);camera.position.lerpVectors(s.a,s.b,t);this.lookNow.lerpVectors(s.la,s.lb,t);camera.lookAt(this.lookNow)}};
 cameraDirector.next(true);
 
 function choreograph(grand=false){const colors=Object.keys(palettes);
@@ -195,7 +195,7 @@ function clearEffects(){rockets.forEach(r=>r.dispose());bursts.forEach(b=>b.disp
 function syncAuto(){const b=document.getElementById('autoBtn');b.classList.toggle('active',auto);b.querySelector('.play-icon').textContent=auto?'Ⅱ':'▶'}
 
 function initAudio(){if(audioCtx)return;audioCtx=new(window.AudioContext||window.webkitAudioContext)();master=audioCtx.createGain();master.gain.value=.72;const comp=audioCtx.createDynamicsCompressor();comp.threshold.value=-8;comp.ratio.value=12;master.connect(comp).connect(audioCtx.destination)}
-async function unlockAudio(){initAudio();if(audioCtx.state==='suspended')await audioCtx.resume();if(!loadingAudio){loadingAudio=true;await Promise.all([1,2,3,4,5,6].map(async n=>{try{boomBuffers.push(await audioCtx.decodeAudioData(await fetch(`assets/audio/boom-${n}.ogg`).then(r=>r.arrayBuffer())))}catch{}}));await Promise.all([1,2,3,4].map(async n=>{try{launchBuffers.push(await audioCtx.decodeAudioData(await fetch(`assets/audio/launch-${n}.ogg`).then(r=>r.arrayBuffer())))}catch{}}))}}
+async function unlockAudio(){initAudio();if(audioCtx.state==='suspended')await audioCtx.resume();const silent=audioCtx.createBufferSource();silent.buffer=audioCtx.createBuffer(1,1,22050);silent.connect(master);silent.start();if(!loadingAudio){loadingAudio=true;const base=`${import.meta.env.BASE_URL}assets/audio/`;await Promise.all([1,2,3,4,5,6].map(async n=>{try{const r=await fetch(`${base}boom-${n}.ogg`);if(!r.ok)throw Error(r.status);boomBuffers.push(await audioCtx.decodeAudioData(await r.arrayBuffer()))}catch(e){console.warn('boom audio',e)}}));await Promise.all([1,2,3,4].map(async n=>{try{const r=await fetch(`${base}launch-${n}.ogg`);if(!r.ok)throw Error(r.status);launchBuffers.push(await audioCtx.decodeAudioData(await r.arrayBuffer()))}catch(e){console.warn('launch audio',e)}}))}if(audioCtx.state==='suspended')await audioCtx.resume()}
 function playBuffer(buffers,pan,volume,rate=1){if(!soundOn||!audioCtx||!buffers.length)return;const src=audioCtx.createBufferSource(),p=audioCtx.createStereoPanner(),g=audioCtx.createGain();src.buffer=pick(buffers);src.playbackRate.value=rate;p.pan.value=THREE.MathUtils.clamp(pan,-1,1);g.gain.value=volume;src.connect(g).connect(p).connect(master);src.start()}
 function playLaunch(pan){playBuffer(launchBuffers,pan,.38,rand(.94,1.07))}function playBoom(pan){playBuffer(boomBuffers,pan,.72,rand(.95,1.05))}
 
@@ -213,7 +213,7 @@ document.addEventListener('click',()=>document.getElementById('festivalMenu').cl
 document.getElementById('autoBtn').onclick=e=>{e.stopPropagation();auto=!auto;syncAuto();if(auto){showTimer=0;unlockAudio()}};
 document.getElementById('soundBtn').onclick=e=>{e.stopPropagation();soundOn=!soundOn;e.currentTarget.classList.toggle('active',soundOn);document.getElementById('soundIcon').textContent=soundOn?'♪':'×';if(soundOn)unlockAudio()};
 document.getElementById('cameraRail').onclick=e=>{const b=e.target.closest('button');if(!b)return;e.stopPropagation();cameraDirector.next(false,Number(b.dataset.camera));unlockAudio()};
-document.getElementById('enterBtn').onclick=()=>{unlockAudio();keepAwake();auto=currentFestival!=='custom';showTimer=3;syncAuto();document.body.classList.add('running');document.getElementById('startScreen').classList.add('hidden');setTimeout(()=>choreograph(true),500)};
+document.getElementById('enterBtn').onclick=async()=>{keepAwake();auto=currentFestival!=='custom';showTimer=3;syncAuto();document.body.classList.add('running');document.getElementById('startScreen').classList.add('hidden');await unlockAudio();choreograph(true)};
 
 let fps=60,frames=0;
 function updateScene(dt){waterUniforms.time.value+=dt;cameraDirector.update(dt);
@@ -227,6 +227,6 @@ function updateScene(dt){waterUniforms.time.value+=dt;cameraDirector.update(dt);
 }
 function animate(){requestAnimationFrame(animate);updateScene(Math.min(.035,clock.getDelta()));composer.render()}
 animate();
-if(import.meta.env.DEV)window.__hanabiStep=(frames=1)=>{for(let i=0;i<frames;i++)updateScene(1/60);composer.render()};
+if(import.meta.env.DEV){window.__hanabiStep=(frames=1)=>{for(let i=0;i<frames;i++)updateScene(1/60);composer.render()};window.__hanabiState=()=>({booms:boomBuffers.length,launches:launchBuffers.length,audio:audioCtx?.state,camera:cameraDirector.shots[cameraDirector.index]?.name})}
 
 addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);composer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,innerWidth<700?1.35:1.8))});
