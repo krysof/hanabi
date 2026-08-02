@@ -17,8 +17,17 @@
 
   <header class="topbar">
     <div class="brand"><span class="brand-mark"></span><span>HANABI</span></div>
+    <button class="festival-picker" id="festivalBtn"><span>日本花火纪行</span><b id="festivalName">长冈大花火</b><i>⌄</i></button>
     <div class="status"><span id="fps">60 FPS</span><i></i><span id="qualityLabel">ULTRA</span></div>
   </header>
+
+  <aside class="festival-menu" id="festivalMenu" aria-label="选择花火大会">
+    <p>SELECT FESTIVAL</p>
+    <button class="active" data-festival="nagaoka"><span>新潟</span><b>长冈祭大花火大会</b><small>信浓川 · 凤凰复兴花火</small></button>
+    <button data-festival="omagari"><span>秋田</span><b>大曲全国花火竞技大会</b><small>雄物川 · 创作花火竞演</small></button>
+    <button data-festival="sumida"><span>东京</span><b>隅田川花火大会</b><small>浅草 · 双会场都市夜景</small></button>
+    <button data-festival="suwa"><span>长野</span><b>诹访湖祭湖上花火大会</b><small>湖上 · 水上大星矿</small></button>
+  </aside>
 
   <main class="hero">
     <p class="eyebrow">INTERACTIVE FIREWORKS EXPERIENCE</p>
@@ -34,6 +43,9 @@
         <button data-type="willow">垂柳</button>
         <button data-type="ring">星环</button>
         <button data-type="peony">牡丹</button>
+        <button data-type="kamuro">冠菊</button>
+        <button data-type="phoenix">凤凰</button>
+        <button data-type="starmine">星矿</button>
       </div>
     </div>
     <div class="divider"></div>
