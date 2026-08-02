@@ -19,7 +19,8 @@
     nagaoka:{name:'长冈大花火',accent:'#79b9ff'},
     omagari:{name:'大曲竞技花火',accent:'#d6a4ff'},
     sumida:{name:'隅田川花火',accent:'#ff9e78'},
-    suwa:{name:'诹访湖上花火',accent:'#7de5d0'}
+    suwa:{name:'诹访湖上花火',accent:'#7de5d0'},
+    custom:{name:'自定义花火',accent:'#ffd479'}
   };
 
   // Kiosk-style interaction guards: keep the experience fixed, focused and awake.
@@ -220,19 +221,31 @@
       const n=grand?7:4;for(let i=0;i<n;i++)setTimeout(()=>launch(W*(.2+(i%3)*.3),rand(H*.12,H*.4),types[i%types.length],colors[i%colors.length]),i*310);
     }else if(currentFestival==='sumida'){
       const n=grand?10:6;for(let i=0;i<n;i++)setTimeout(()=>{const site=i%2?W*.31:W*.69;launch(site+rand(-W*.08,W*.08),rand(H*.13,H*.43),pick(types),pick(colors))},i*145);
-    }else{
+    }else if(currentFestival==='suwa'){
       const n=W<700?3:grand?7:4;for(let i=0;i<n;i++)setTimeout(()=>waterMine(W*(.12+i*(.76/(n-1))),i%2?'azure':'gold'),i*170);for(let i=0;i<(grand?5:3);i++)setTimeout(()=>launch(rand(W*.2,W*.8),rand(H*.1,H*.35),i%2?'kamuro':'starmine',pick(colors)),450+i*250);
+    }else{
+      const n=grand?6:3;for(let i=0;i<n;i++)setTimeout(()=>launch(rand(W*.18,W*.82),rand(H*.12,H*.44),selectedType,selectedColor),i*220);
     }
   }
 
-  canvas.addEventListener('pointerdown',e=>{unlockAudio();dragging=true;dragTime=0;launch(e.clientX,Math.max(80,Math.min(e.clientY,horizon-70)));});
-  canvas.addEventListener('pointermove',e=>{if(!dragging)return;dragTime++;if(dragTime%7===0)launch(e.clientX,Math.max(80,Math.min(e.clientY,horizon-60)));});
+  function selectFestival(id,play=false){
+    currentFestival=id;document.getElementById('festivalName').textContent=festivals[id].name;
+    document.body.classList.toggle('custom-mode',id==='custom');document.getElementById('typeLabel').textContent=id==='custom'?'烟花类型':'大会专属编排';
+    document.querySelectorAll('#festivalMenu button').forEach(x=>x.classList.toggle('active',x.dataset.festival===id));
+    document.querySelectorAll('#introFestivals button').forEach(x=>x.classList.toggle('active',x.dataset.introFestival===id));
+    document.getElementById('festivalMenu').classList.remove('open');
+    if(play){rockets.length=particles.length=flashes.length=smoke.length=ripples.length=shockwaves.length=0;setTimeout(()=>choreograph(true),280)}
+  }
+
+  canvas.addEventListener('pointerdown',e=>{unlockAudio();dragging=true;dragTime=0;if(currentFestival==='custom')launch(e.clientX,Math.max(80,Math.min(e.clientY,horizon-70)));else choreograph(false)});
+  canvas.addEventListener('pointermove',e=>{if(!dragging||currentFestival!=='custom')return;dragTime++;if(dragTime%7===0)launch(e.clientX,Math.max(80,Math.min(e.clientY,horizon-60)));});
   addEventListener('pointerup',()=>dragging=false);
-  document.getElementById('launchBtn').onclick=e=>{e.stopPropagation();launch()};
+  document.getElementById('launchBtn').onclick=e=>{e.stopPropagation();currentFestival==='custom'?launch():choreograph(false)};
   document.getElementById('types').onclick=e=>{const b=e.target.closest('button');if(!b)return;selectedType=b.dataset.type;document.querySelectorAll('#types button').forEach(x=>x.classList.toggle('active',x===b))};
   document.getElementById('palette').onclick=e=>{const b=e.target.closest('button');if(!b)return;selectedColor=b.dataset.color;document.querySelectorAll('.swatch').forEach(x=>x.classList.toggle('active',x===b))};
   document.getElementById('festivalBtn').onclick=e=>{e.stopPropagation();document.getElementById('festivalMenu').classList.toggle('open')};
-  document.getElementById('festivalMenu').onclick=e=>{const b=e.target.closest('button');if(!b)return;e.stopPropagation();currentFestival=b.dataset.festival;document.getElementById('festivalName').textContent=festivals[currentFestival].name;document.querySelectorAll('#festivalMenu button').forEach(x=>x.classList.toggle('active',x===b));document.getElementById('festivalMenu').classList.remove('open');rockets.length=particles.length=flashes.length=smoke.length=ripples.length=shockwaves.length=0;setTimeout(()=>choreograph(true),280)};
+  document.getElementById('festivalMenu').onclick=e=>{const b=e.target.closest('button');if(!b)return;e.stopPropagation();selectFestival(b.dataset.festival,true)};
+  document.getElementById('introFestivals').onclick=e=>{const b=e.target.closest('button');if(!b)return;e.stopPropagation();selectFestival(b.dataset.introFestival,false)};
   document.addEventListener('click',()=>document.getElementById('festivalMenu').classList.remove('open'));
   document.getElementById('autoBtn').onclick=e=>{e.stopPropagation();auto=!auto;e.currentTarget.classList.toggle('active',auto);e.currentTarget.querySelector('.play-icon').textContent=auto?'Ⅱ':'▶';if(auto){showTimer=0;initAudio()}};
   document.getElementById('soundBtn').onclick=e=>{e.stopPropagation();soundOn=!soundOn;e.currentTarget.classList.toggle('active',soundOn);document.getElementById('soundIcon').textContent=soundOn?'♪':'×';if(soundOn)unlockAudio()};
