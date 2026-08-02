@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#02040a" />
+  <meta name="description" content="HANABI — 沉浸式电影级烟花模拟器" />
+  <title>HANABI — 烟花模拟器</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Noto+Sans+SC:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <canvas id="scene" aria-label="交互式烟花夜景"></canvas>
+  <div class="vignette"></div><div class="grain"></div>
+
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark"></span><span>HANABI</span></div>
+    <div class="status"><span id="fps">60 FPS</span><i></i><span id="qualityLabel">ULTRA</span></div>
+  </header>
+
+  <main class="hero">
+    <p class="eyebrow">INTERACTIVE FIREWORKS EXPERIENCE</p>
+    <h1>点亮，<em>这一刻。</em></h1>
+    <p class="subtitle">点击夜空发射烟花 · 拖动创造连发轨迹</p>
+  </main>
+
+  <section class="controls" aria-label="烟花控制台">
+    <div class="control-block types">
+      <span class="label">烟花类型</span>
+      <div class="segmented" id="types">
+        <button class="active" data-type="chrysanthemum">菊花</button>
+        <button data-type="willow">垂柳</button>
+        <button data-type="ring">星环</button>
+        <button data-type="peony">牡丹</button>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="control-block palette-block">
+      <span class="label">焰色</span>
+      <div class="palette" id="palette">
+        <button class="swatch active" data-color="gold" style="--c:#ffd479" aria-label="鎏金"></button>
+        <button class="swatch" data-color="sakura" style="--c:#ff7fae" aria-label="樱粉"></button>
+        <button class="swatch" data-color="azure" style="--c:#62c9ff" aria-label="天青"></button>
+        <button class="swatch" data-color="emerald" style="--c:#70f2b4" aria-label="翡翠"></button>
+        <button class="swatch rainbow" data-color="rainbow" aria-label="幻彩"></button>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <button class="icon-button" id="autoBtn" title="自动演出" aria-label="自动演出"><span class="play-icon">▶</span><small>演出</small></button>
+    <button class="icon-button active" id="soundBtn" title="声音" aria-label="声音"><span id="soundIcon">♪</span><small>声音</small></button>
+  </section>
+
+  <button class="launch" id="launchBtn"><span class="launch-rings"></span><span class="rocket">↑</span><b>发射</b></button>
+  <div class="hint" id="hint"><span>＋</span> 点击任意位置</div>
+
+  <div class="start-screen" id="startScreen">
+    <div class="start-content">
+      <div class="start-logo"><span></span></div>
+      <p>沉浸式烟花体验</p>
+      <h2>HANABI</h2>
+      <button id="enterBtn">进入夜空 <i>→</i></button>
+      <small>建议佩戴耳机 · 点击开启声音</small>
+    </div>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>
