@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { GTAOPass } from 'three/examples/jsm/postprocessing/GTAOPass.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 const canvas=document.getElementById('scene');
 const mobile=innerWidth<700;
@@ -21,6 +23,7 @@ const camera=new THREE.PerspectiveCamera(54,innerWidth/innerHeight,.5,3000);
 camera.position.set(0,18,245);
 const composer=new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene,camera));
+if(!mobile){const gtao=new GTAOPass(scene,camera,innerWidth,innerHeight);gtao.output=GTAOPass.OUTPUT.Default;gtao.updateGtaoMaterial({radius:2.4,distanceExponent:1.7,thickness:1.1,distanceFallOff:1});composer.addPass(gtao)}
 const bloom=new UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight),mobile?1.2:1.75,.62,.08);
 composer.addPass(bloom);
 
@@ -28,7 +31,7 @@ const clock=new THREE.Clock();
 const world=new THREE.Group(),decor=new THREE.Group(),story=new THREE.Group(),effects=new THREE.Group();
 scene.add(world,decor,story,effects);
 const hemi=new THREE.HemisphereLight(0x49698e,0x020305,.42);scene.add(hemi);
-const moon=new THREE.DirectionalLight(0x9dc9ff,.55);moon.position.set(-200,350,150);moon.castShadow=!mobile;scene.add(moon);
+const moon=new THREE.DirectionalLight(0x9dc9ff,.8);moon.position.set(-200,350,150);moon.castShadow=!mobile;if(!mobile){moon.shadow.mapSize.set(2048,2048);moon.shadow.camera.left=-300;moon.shadow.camera.right=300;moon.shadow.camera.top=300;moon.shadow.camera.bottom=-150;moon.shadow.camera.near=10;moon.shadow.camera.far=900;moon.shadow.bias=-.0003}scene.add(moon);
 
 const palettes={
   gold:[0xfff0b5,0xffcc68,0xff8d32],sakura:[0xffe8f3,0xff78af,0xe84890],azure:[0xe7faff,0x6ed6ff,0x357cff],
@@ -37,6 +40,7 @@ const palettes={
 const festivalNames={nagaoka:'长冈大花火',omagari:'大曲竞技花火',sumida:'隅田川花火',suwa:'诹访湖上花火',custom:'自定义花火'};
 let currentFestival='nagaoka',selectedType='chrysanthemum',selectedColor='gold',auto=false,soundOn=true,showTimer=3;
 let rockets=[],bursts=[],smokes=[],lights=[],audioCtx,master,loadingAudio=false;
+const characterMixers=[];
 const boomBuffers=[],launchBuffers=[];
 
 const rand=(a,b)=>Math.random()*(b-a)+a;
@@ -77,20 +81,23 @@ function lightDot(x,y,z,color=0xffbf72,size=2){const s=new THREE.Sprite(new THRE
 
 // A fully modelled foreground tableau. It gives the fireworks scale, narrative and
 // real foreground/midground/background parallax instead of treating the sky as wallpaper.
-const silhouetteMat=new THREE.MeshStandardMaterial({color:0x070a10,roughness:.86,metalness:.08});
-const clothMat=new THREE.MeshStandardMaterial({color:0x0c111a,roughness:.95});
-const metalMat=new THREE.MeshStandardMaterial({color:0x111923,roughness:.32,metalness:.82});
+const silhouetteMat=new THREE.MeshStandardMaterial({color:0x161d28,roughness:.86,metalness:.06});
+const clothMat=new THREE.MeshStandardMaterial({color:0x263149,roughness:.91});
+const coatMat=new THREE.MeshStandardMaterial({color:0x343b49,roughness:.88});
+const skinMat=new THREE.MeshStandardMaterial({color:0x9a756b,roughness:.76});
+const hairMat=new THREE.MeshStandardMaterial({color:0x17131b,roughness:.96});
+const metalMat=new THREE.MeshStandardMaterial({color:0x293847,roughness:.3,metalness:.78});
 function limb(a,b,r,mat=silhouetteMat){const d=new THREE.Vector3().subVectors(b,a),m=new THREE.Mesh(new THREE.CylinderGeometry(r,r*.88,d.length(),8),mat);m.position.copy(a).add(b).multiplyScalar(.5);m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.clone().normalize());m.castShadow=true;return m}
 function makePerson(x,scale=1,pose='center'){
-  const g=new THREE.Group(), hip=new THREE.Vector3(0,16*scale,0), shoulder=new THREE.Vector3(0,28*scale,0);
-  const torso=new THREE.Mesh(new THREE.CapsuleGeometry(5.2*scale,10*scale,7,10),clothMat);torso.position.set(0,23*scale,0);torso.scale.set(1,1,pose==='coat'?1.18:1);g.add(torso);
-  const head=new THREE.Mesh(new THREE.SphereGeometry(4.25*scale,18,14),silhouetteMat);head.position.set(0,37*scale,0);head.scale.set(1,.95,.92);g.add(head);
-  const hair=new THREE.Mesh(new THREE.SphereGeometry(4.5*scale,14,10,0,Math.PI*2,0,Math.PI*.68),new THREE.MeshStandardMaterial({color:0x030407,roughness:1}));hair.position.set(-.2*scale,38*scale,-.25*scale);hair.rotation.z=.12;g.add(hair);
+  const g=new THREE.Group(), hip=new THREE.Vector3(0,16*scale,0), shoulder=new THREE.Vector3(0,28*scale,0),bodyMat=pose==='embrace'?coatMat:clothMat;
+  const torso=new THREE.Mesh(new THREE.CapsuleGeometry(5.2*scale,10*scale,7,10),bodyMat);torso.position.set(0,23*scale,0);torso.scale.set(1,1,pose==='coat'?1.18:1);g.add(torso);
+  const head=new THREE.Mesh(new THREE.SphereGeometry(4.25*scale,18,14),skinMat);head.position.set(0,37*scale,0);head.scale.set(1,.95,.92);g.add(head);
+  const hair=new THREE.Mesh(new THREE.SphereGeometry(4.5*scale,14,10,0,Math.PI*2,0,Math.PI*.68),hairMat);hair.position.set(-.2*scale,38*scale,-.25*scale);hair.rotation.z=.12;g.add(hair);
   const leftFoot=new THREE.Vector3(-3.4*scale,0,pose==='lean'?1.5:0),rightFoot=new THREE.Vector3(3.4*scale,0,0);
   g.add(limb(hip.clone().add(new THREE.Vector3(-2.5*scale,0,0)),leftFoot,2.15*scale),limb(hip.clone().add(new THREE.Vector3(2.5*scale,0,0)),rightFoot,2.15*scale));
   const lHand=pose==='lean'?new THREE.Vector3(-13*scale,25*scale,1):new THREE.Vector3(-7*scale,14*scale,0);
   const rHand=pose==='embrace'?new THREE.Vector3(-13*scale,28*scale,2):new THREE.Vector3(7*scale,15*scale,0);
-  g.add(limb(shoulder.clone().add(new THREE.Vector3(-4.4*scale,0,0)),lHand,1.55*scale,clothMat),limb(shoulder.clone().add(new THREE.Vector3(4.4*scale,0,0)),rHand,1.55*scale,clothMat));
+  g.add(limb(shoulder.clone().add(new THREE.Vector3(-4.4*scale,0,0)),lHand,1.55*scale,bodyMat),limb(shoulder.clone().add(new THREE.Vector3(4.4*scale,0,0)),rHand,1.55*scale,bodyMat));
   g.position.x=x;g.children.forEach(o=>{if(o.isMesh)o.castShadow=true});return g;
 }
 function makeObserver(x){
@@ -106,13 +113,16 @@ function buildStory(){
   const railMat=new THREE.MeshStandardMaterial({color:0x111821,roughness:.4,metalness:.8});
   story.add(limb(new THREE.Vector3(-86,14,82),new THREE.Vector3(86,14,82),1.1,railMat));for(let x=-82;x<88;x+=18)story.add(limb(new THREE.Vector3(x,0,82),new THREE.Vector3(x,15,82),.55,railMat));
   const observer=makeObserver(-28);observer.position.z=103;observer.rotation.y=-.13;story.add(observer);
-  const heroine=makePerson(0,.94,'lean');heroine.position.z=101;heroine.rotation.z=-.04;story.add(heroine);
-  const companion=makePerson(20,1.12,'embrace');companion.position.z=104;companion.rotation.y=-.12;story.add(companion);
+  const heroine=makePerson(0,.94,'lean');heroine.name='proxyHeroine';heroine.position.z=101;heroine.rotation.z=-.04;story.add(heroine);
+  const companion=makePerson(20,1.12,'embrace');companion.name='proxyCompanion';companion.position.z=104;companion.rotation.y=-.12;story.add(companion);
   // Companion's arm crosses the frame to the heroine: a readable, original story beat.
-  story.add(limb(new THREE.Vector3(15,31,104),new THREE.Vector3(2,29,101),1.75,clothMat));
-  const cyan=new THREE.PointLight(0x55bfff,7,90,2);cyan.position.set(-42,45,76);const magenta=new THREE.PointLight(0xff5a9d,5,80,2);magenta.position.set(38,38,75);story.add(cyan,magenta);story.userData.rim=[cyan,magenta];
+  const proxyArm=limb(new THREE.Vector3(15,31,104),new THREE.Vector3(2,29,101),1.75,clothMat);proxyArm.name='proxyArm';story.add(proxyArm);
+  const cyan=new THREE.PointLight(0x55bfff,380,125,1.7);cyan.position.set(-42,45,76);const magenta=new THREE.PointLight(0xff5a9d,260,115,1.7);magenta.position.set(38,38,75);const fill=new THREE.PointLight(0xffd1ad,950,230,1.5);fill.position.set(-8,54,176);const top=new THREE.PointLight(0x8abfff,420,165,1.7);top.position.set(42,85,128);story.add(cyan,magenta,fill,top);story.userData.rim=[cyan,magenta];
 }
 buildStory();
+function loadHeroCharacter(url,name,position,scale,rotationY){new GLTFLoader().load(`${import.meta.env.BASE_URL}${url}`,gltf=>{const model=gltf.scene;model.name=name;model.position.copy(position);model.scale.setScalar(scale);model.rotation.y=rotationY;model.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;o.material.envMapIntensity=1.15}});story.add(model);const proxy=story.getObjectByName(name==='heroineHD'?'proxyHeroine':'proxyCompanion');if(proxy)proxy.visible=false;const proxyArm=story.getObjectByName('proxyArm');if(proxyArm)proxyArm.visible=false;if(gltf.animations.length){const mixer=new THREE.AnimationMixer(model),clip=gltf.animations.find(a=>/idle/i.test(a.name))||gltf.animations[0],action=mixer.clipAction(clip);action.play();if(name==='heroineHD'){mixer.setTime(.18)}else characterMixers.push(mixer)}},undefined,e=>console.warn('character model',e))}
+loadHeroCharacter('assets/models/Michelle.glb','heroineHD',new THREE.Vector3(0,0,101),22,0);
+loadHeroCharacter('assets/models/Soldier.glb','companionHD',new THREE.Vector3(21,0,104),22,-.12);
 
 function buildFestival(id){
   while(decor.children.length){const o=decor.children.pop();o.geometry?.dispose();if(o.material){if(Array.isArray(o.material))o.material.forEach(m=>m.dispose());else o.material.dispose()}}
@@ -170,7 +180,7 @@ function explode(pos,type,colorKey){
   for(let i=0;i<(mobile?5:12);i++)smokes.push(new Smoke(pos,colorFor(colorKey,i)));
   flash(pos,colorFor(colorKey,1));playBoom(pos.x/260);cameraDirector.focus.copy(pos);
 }
-function flash(pos,color){const light=new THREE.PointLight(color,mobile?18:42,340,2);light.position.copy(pos);scene.add(light);const s=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTexture,color,transparent:true,opacity:1,blending:THREE.AdditiveBlending,depthWrite:false}));s.position.copy(pos);s.scale.setScalar(18);effects.add(s);story.userData.rim?.forEach(r=>r.intensity+=8);lights.push({light,s,age:0,life:.55})}
+function flash(pos,color){const light=new THREE.PointLight(color,mobile?900:1800,420,1.7);light.position.copy(pos);scene.add(light);const s=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTexture,color,transparent:true,opacity:1,blending:THREE.AdditiveBlending,depthWrite:false}));s.position.copy(pos);s.scale.setScalar(18);effects.add(s);story.userData.rim?.forEach(r=>r.intensity+=350);lights.push({light,s,age:0,life:.55})}
 function launch(x=rand(-220,220),target=rand(95,205),type=selectedType,color=selectedColor,z=rand(-190,-35)){rockets.push(new Rocket(x,target,type,color,z))}
 function waterMine(x,color='gold'){const p=new THREE.Vector3(x,6,rand(-80,70));bursts.push(new Burst(p,'phoenix',color,.8));flash(p,colorFor(color));playBoom(x/260)}
 
@@ -218,11 +228,12 @@ document.getElementById('enterBtn').onclick=async()=>{keepAwake();auto=currentFe
 
 let fps=60,frames=0;
 function updateScene(dt){waterUniforms.time.value+=dt;cameraDirector.update(dt);
-  if(story.userData.rim){story.userData.rim[0].intensity=THREE.MathUtils.lerp(story.userData.rim[0].intensity,7,dt*2.5);story.userData.rim[1].intensity=THREE.MathUtils.lerp(story.userData.rim[1].intensity,5,dt*2.5)}
+  characterMixers.forEach(m=>m.update(dt));
+  if(story.userData.rim){story.userData.rim[0].intensity=THREE.MathUtils.lerp(story.userData.rim[0].intensity,380,dt*2.5);story.userData.rim[1].intensity=THREE.MathUtils.lerp(story.userData.rim[1].intensity,260,dt*2.5)}
   for(let i=rockets.length-1;i>=0;i--){rockets[i].update(dt);if(rockets[i].dead)rockets.splice(i,1)}
   for(let i=bursts.length-1;i>=0;i--)if(bursts[i].update(dt)){bursts[i].dispose();bursts.splice(i,1)}
   for(let i=smokes.length-1;i>=0;i--)if(smokes[i].update(dt)){smokes[i].dispose();smokes.splice(i,1)}
-  for(let i=lights.length-1;i>=0;i--){const l=lights[i];l.age+=dt;const f=Math.max(0,1-l.age/l.life);l.light.intensity=(mobile?14:30)*f;l.s.material.opacity=f;l.s.scale.setScalar(18+(1-f)*55);if(l.age>=l.life){scene.remove(l.light);effects.remove(l.s);l.light.dispose();l.s.material.dispose();lights.splice(i,1)}}
+  for(let i=lights.length-1;i>=0;i--){const l=lights[i];l.age+=dt;const f=Math.max(0,1-l.age/l.life);l.light.intensity=(mobile?900:1800)*f;l.s.material.opacity=f;l.s.scale.setScalar(18+(1-f)*55);if(l.age>=l.life){scene.remove(l.light);effects.remove(l.s);l.light.dispose();l.s.material.dispose();lights.splice(i,1)}}
   if(auto){showTimer-=dt;if(showTimer<=0){choreograph(false);showTimer=rand(4.2,7.2)}}
   fps=fps*.94+(1/Math.max(dt,.001))*.06;if(++frames%40===0)document.getElementById('fps').textContent=Math.round(Math.min(99,fps))+' FPS';
 }
