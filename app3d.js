@@ -2,8 +2,6 @@ import * as THREE from 'three';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
-import { GTAOPass } from 'three/examples/jsm/postprocessing/GTAOPass.js';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 const canvas=document.getElementById('scene');
 const mobile=innerWidth<700;
@@ -23,7 +21,6 @@ const camera=new THREE.PerspectiveCamera(54,innerWidth/innerHeight,.5,3000);
 camera.position.set(0,18,245);
 const composer=new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene,camera));
-if(!mobile){const gtao=new GTAOPass(scene,camera,innerWidth,innerHeight);gtao.output=GTAOPass.OUTPUT.Default;gtao.updateGtaoMaterial({radius:2.4,distanceExponent:1.7,thickness:1.1,distanceFallOff:1});composer.addPass(gtao)}
 const bloom=new UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight),mobile?1.2:1.75,.62,.08);
 composer.addPass(bloom);
 
@@ -40,7 +37,6 @@ const palettes={
 const festivalNames={nagaoka:'长冈大花火',omagari:'大曲竞技花火',sumida:'隅田川花火',suwa:'诹访湖上花火',custom:'自定义花火'};
 let currentFestival='nagaoka',selectedType='chrysanthemum',selectedColor='gold',auto=false,soundOn=true,showTimer=3;
 let rockets=[],bursts=[],smokes=[],lights=[],audioCtx,master,loadingAudio=false;
-const characterMixers=[];
 const boomBuffers=[],launchBuffers=[];
 
 const rand=(a,b)=>Math.random()*(b-a)+a;
@@ -119,10 +115,6 @@ function buildStory(){
   const proxyArm=limb(new THREE.Vector3(15,31,104),new THREE.Vector3(2,29,101),1.75,clothMat);proxyArm.name='proxyArm';story.add(proxyArm);
   const cyan=new THREE.PointLight(0x55bfff,380,125,1.7);cyan.position.set(-42,45,76);const magenta=new THREE.PointLight(0xff5a9d,260,115,1.7);magenta.position.set(38,38,75);const fill=new THREE.PointLight(0xffd1ad,950,230,1.5);fill.position.set(-8,54,176);const top=new THREE.PointLight(0x8abfff,420,165,1.7);top.position.set(42,85,128);story.add(cyan,magenta,fill,top);story.userData.rim=[cyan,magenta];
 }
-buildStory();
-function loadHeroCharacter(url,name,position,scale,rotationY){new GLTFLoader().load(`${import.meta.env.BASE_URL}${url}`,gltf=>{const model=gltf.scene;model.name=name;model.position.copy(position);model.scale.setScalar(scale);model.rotation.y=rotationY;model.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;o.material.envMapIntensity=1.15}});story.add(model);const proxy=story.getObjectByName(name==='heroineHD'?'proxyHeroine':'proxyCompanion');if(proxy)proxy.visible=false;const proxyArm=story.getObjectByName('proxyArm');if(proxyArm)proxyArm.visible=false;if(gltf.animations.length){const mixer=new THREE.AnimationMixer(model),clip=gltf.animations.find(a=>/idle/i.test(a.name))||gltf.animations[0],action=mixer.clipAction(clip);action.play();if(name==='heroineHD'){mixer.setTime(.18)}else characterMixers.push(mixer)}},undefined,e=>console.warn('character model',e))}
-loadHeroCharacter('assets/models/Michelle.glb','heroineHD',new THREE.Vector3(0,0,101),22,0);
-loadHeroCharacter('assets/models/Soldier.glb','companionHD',new THREE.Vector3(21,0,104),22,-.12);
 
 function buildFestival(id){
   while(decor.children.length){const o=decor.children.pop();o.geometry?.dispose();if(o.material){if(Array.isArray(o.material))o.material.forEach(m=>m.dispose());else o.material.dispose()}}
@@ -180,16 +172,16 @@ function explode(pos,type,colorKey){
   for(let i=0;i<(mobile?5:12);i++)smokes.push(new Smoke(pos,colorFor(colorKey,i)));
   flash(pos,colorFor(colorKey,1));playBoom(pos.x/260);cameraDirector.focus.copy(pos);
 }
-function flash(pos,color){const light=new THREE.PointLight(color,mobile?900:1800,420,1.7);light.position.copy(pos);scene.add(light);const s=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTexture,color,transparent:true,opacity:1,blending:THREE.AdditiveBlending,depthWrite:false}));s.position.copy(pos);s.scale.setScalar(18);effects.add(s);story.userData.rim?.forEach(r=>r.intensity+=350);lights.push({light,s,age:0,life:.55})}
+function flash(pos,color){const light=new THREE.PointLight(color,mobile?900:1800,420,1.7);light.position.copy(pos);scene.add(light);const s=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTexture,color,transparent:true,opacity:1,blending:THREE.AdditiveBlending,depthWrite:false}));s.position.copy(pos);s.scale.setScalar(18);effects.add(s);const reflection=new THREE.Mesh(new THREE.PlaneGeometry(38,210),new THREE.MeshBasicMaterial({map:glowTexture,color,transparent:true,opacity:.34,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide}));reflection.rotation.x=-Math.PI/2;reflection.rotation.z=rand(-.08,.08);reflection.position.set(pos.x,-1.15,THREE.MathUtils.clamp(pos.z+90,-160,120));effects.add(reflection);lights.push({light,s,reflection,age:0,life:.75})}
 function launch(x=rand(-220,220),target=rand(95,205),type=selectedType,color=selectedColor,z=rand(-190,-35)){rockets.push(new Rocket(x,target,type,color,z))}
 function waterMine(x,color='gold'){const p=new THREE.Vector3(x,6,rand(-80,70));bursts.push(new Burst(p,'phoenix',color,.8));flash(p,colorFor(color));playBoom(x/260)}
 
 const cameraDirector={index:-1,shotTime:0,phase:'shot',transitionTime:0,transitionDuration:4.6,focus:new THREE.Vector3(0,100,0),lookNow:new THREE.Vector3(),fromPos:new THREE.Vector3(),fromLook:new THREE.Vector3(),c1:new THREE.Vector3(),c2:new THREE.Vector3(),targetIndex:0,fromFov:49,shots:[
-  {name:'ESTABLISHING',a:new THREE.Vector3(0,24,224),b:new THREE.Vector3(-10,28,204),la:new THREE.Vector3(0,76,-42),lb:new THREE.Vector3(0,96,-70),fov:49,duration:12},
-  {name:'OVER SHOULDER',a:new THREE.Vector3(-56,36,151),b:new THREE.Vector3(-42,39,134),la:new THREE.Vector3(28,89,-65),lb:new THREE.Vector3(42,108,-90),fov:55,duration:10},
-  {name:'LOW REVEAL',a:new THREE.Vector3(76,8,166),b:new THREE.Vector3(54,16,142),la:new THREE.Vector3(-16,102,-86),lb:new THREE.Vector3(-8,125,-120),fov:62,duration:8},
-  {name:'PROFILE TRACK',a:new THREE.Vector3(-118,31,130),b:new THREE.Vector3(-98,35,119),la:new THREE.Vector3(15,78,-70),lb:new THREE.Vector3(28,103,-98),fov:50,duration:11},
-  {name:'AERIAL ORBIT',a:new THREE.Vector3(168,104,236),b:new THREE.Vector3(104,126,190),la:new THREE.Vector3(0,82,-34),lb:new THREE.Vector3(-8,108,-75),fov:46,duration:13}
+  {name:'LAKE ESTABLISHING',a:new THREE.Vector3(0,13,286),b:new THREE.Vector3(-18,17,246),la:new THREE.Vector3(0,92,-170),lb:new THREE.Vector3(0,116,-230),fov:50,duration:13},
+  {name:'WATERLINE DOLLY',a:new THREE.Vector3(-155,6,196),b:new THREE.Vector3(-72,8,156),la:new THREE.Vector3(35,96,-205),lb:new THREE.Vector3(75,126,-250),fov:56,duration:11},
+  {name:'LAUNCH REVEAL',a:new THREE.Vector3(112,4,112),b:new THREE.Vector3(74,12,145),la:new THREE.Vector3(-35,138,-220),lb:new THREE.Vector3(-12,168,-280),fov:64,duration:9},
+  {name:'SHORELINE TRACK',a:new THREE.Vector3(-205,25,250),b:new THREE.Vector3(-115,28,205),la:new THREE.Vector3(30,105,-190),lb:new THREE.Vector3(90,138,-270),fov:51,duration:12},
+  {name:'AERIAL PANORAMA',a:new THREE.Vector3(280,150,330),b:new THREE.Vector3(120,185,245),la:new THREE.Vector3(0,90,-260),lb:new THREE.Vector3(-45,142,-330),fov:47,duration:14}
 ],announce(i,moving=false){const s=this.shots[i];document.getElementById('qualityLabel').textContent=moving?`TRACK → ${s.name}`:s.name;document.querySelectorAll('#cameraRail button').forEach((b,n)=>b.classList.toggle('active',n===i));const cut=document.getElementById('cameraCut');cut.querySelector('small').textContent=moving?'CONTINUOUS CAMERA':`CAMERA 0${i+1}`;cut.querySelector('b').textContent=s.name;cut.classList.remove('show');requestAnimationFrame(()=>cut.classList.add('show'));clearTimeout(this.cutTimer);this.cutTimer=setTimeout(()=>cut.classList.remove('show'),1050)},next(force=false,manualIndex=null){if(currentFestival==='custom'&&manualIndex===null)return;const i=manualIndex!==null?manualIndex:(this.index+1)%this.shots.length,s=this.shots[i];if(force||this.index<0){this.index=i;this.phase='shot';this.shotTime=0;camera.position.copy(s.a);this.lookNow.copy(s.la);camera.fov=s.fov;camera.updateProjectionMatrix();camera.lookAt(this.lookNow);this.announce(i);return}this.phase='transition';this.targetIndex=i;this.transitionTime=0;this.fromPos.copy(camera.position);this.fromLook.copy(this.lookNow);this.fromFov=camera.fov;const distance=this.fromPos.distanceTo(s.a);this.transitionDuration=THREE.MathUtils.clamp(distance/34,3.6,6.2);const travel=s.a.clone().sub(this.fromPos);this.c1.copy(this.fromPos).addScaledVector(travel,.3).add(new THREE.Vector3(0,Math.min(38,distance*.16),0));this.c2.copy(this.fromPos).addScaledVector(travel,.72).add(new THREE.Vector3(0,Math.min(24,distance*.1),0));this.announce(i,true)},update(dt){if(currentFestival==='custom'&&this.phase!=='transition')return;if(this.phase==='transition'){this.transitionTime+=dt;const raw=Math.min(1,this.transitionTime/this.transitionDuration),t=raw*raw*(3-2*raw),u=1-t,s=this.shots[this.targetIndex];camera.position.copy(this.fromPos).multiplyScalar(u*u*u).addScaledVector(this.c1,3*u*u*t).addScaledVector(this.c2,3*u*t*t).addScaledVector(s.a,t*t*t);this.lookNow.lerpVectors(this.fromLook,s.la,t);camera.fov=THREE.MathUtils.lerp(this.fromFov,s.fov,t);camera.updateProjectionMatrix();camera.lookAt(this.lookNow);if(raw>=1){this.index=this.targetIndex;this.phase='shot';this.shotTime=0;this.announce(this.index)}return}const s=this.shots[this.index];this.shotTime+=dt;if(this.shotTime>=s.duration){this.next();return}const p=this.shotTime/s.duration,t=p*p*(3-2*p);camera.position.lerpVectors(s.a,s.b,t);this.lookNow.lerpVectors(s.la,s.lb,t);camera.lookAt(this.lookNow)}};
 cameraDirector.next(true);
 
@@ -202,7 +194,7 @@ function choreograph(grand=false){const colors=Object.keys(palettes);
 }
 
 function selectFestival(id,play=false){currentFestival=id;document.getElementById('festivalName').textContent=festivalNames[id];document.body.classList.toggle('custom-mode',id==='custom');document.getElementById('typeLabel').textContent=id==='custom'?'烟花类型':'大会专属编排';document.querySelectorAll('#festivalMenu button').forEach(x=>x.classList.toggle('active',x.dataset.festival===id));document.querySelectorAll('#introFestivals button').forEach(x=>x.classList.toggle('active',x.dataset.introFestival===id));document.getElementById('festivalMenu').classList.remove('open');buildFestival(id);auto=id!=='custom';showTimer=3;syncAuto();if(id!=='custom'){cameraDirector.index=-1;cameraDirector.next(true)}else{camera.position.set(0,22,245);camera.lookAt(0,105,0);document.getElementById('qualityLabel').textContent='FREE CAMERA'}if(play){clearEffects();setTimeout(()=>choreograph(true),280)}}
-function clearEffects(){rockets.forEach(r=>r.dispose());bursts.forEach(b=>b.dispose());smokes.forEach(s=>s.dispose());lights.forEach(l=>{scene.remove(l.light);effects.remove(l.s);l.light.dispose();l.s.material.dispose()});rockets=[];bursts=[];smokes=[];lights=[]}
+function clearEffects(){rockets.forEach(r=>r.dispose());bursts.forEach(b=>b.dispose());smokes.forEach(s=>s.dispose());lights.forEach(l=>{scene.remove(l.light);effects.remove(l.s,l.reflection);l.light.dispose();l.s.material.dispose();l.reflection?.geometry.dispose();l.reflection?.material.dispose()});rockets=[];bursts=[];smokes=[];lights=[]}
 function syncAuto(){const b=document.getElementById('autoBtn');b.classList.toggle('active',auto);b.querySelector('.play-icon').textContent=auto?'Ⅱ':'▶'}
 
 function initAudio(){if(audioCtx)return;audioCtx=new(window.AudioContext||window.webkitAudioContext)();master=audioCtx.createGain();master.gain.value=.72;const comp=audioCtx.createDynamicsCompressor();comp.threshold.value=-8;comp.ratio.value=12;master.connect(comp).connect(audioCtx.destination)}
@@ -228,12 +220,10 @@ document.getElementById('enterBtn').onclick=async()=>{keepAwake();auto=currentFe
 
 let fps=60,frames=0;
 function updateScene(dt){waterUniforms.time.value+=dt;cameraDirector.update(dt);
-  characterMixers.forEach(m=>m.update(dt));
-  if(story.userData.rim){story.userData.rim[0].intensity=THREE.MathUtils.lerp(story.userData.rim[0].intensity,380,dt*2.5);story.userData.rim[1].intensity=THREE.MathUtils.lerp(story.userData.rim[1].intensity,260,dt*2.5)}
   for(let i=rockets.length-1;i>=0;i--){rockets[i].update(dt);if(rockets[i].dead)rockets.splice(i,1)}
   for(let i=bursts.length-1;i>=0;i--)if(bursts[i].update(dt)){bursts[i].dispose();bursts.splice(i,1)}
   for(let i=smokes.length-1;i>=0;i--)if(smokes[i].update(dt)){smokes[i].dispose();smokes.splice(i,1)}
-  for(let i=lights.length-1;i>=0;i--){const l=lights[i];l.age+=dt;const f=Math.max(0,1-l.age/l.life);l.light.intensity=(mobile?900:1800)*f;l.s.material.opacity=f;l.s.scale.setScalar(18+(1-f)*55);if(l.age>=l.life){scene.remove(l.light);effects.remove(l.s);l.light.dispose();l.s.material.dispose();lights.splice(i,1)}}
+  for(let i=lights.length-1;i>=0;i--){const l=lights[i];l.age+=dt;const f=Math.max(0,1-l.age/l.life);l.light.intensity=(mobile?900:1800)*f;l.s.material.opacity=f;l.s.scale.setScalar(18+(1-f)*55);if(l.reflection){l.reflection.material.opacity=f*.34;l.reflection.scale.y=1+(1-f)*.8}if(l.age>=l.life){scene.remove(l.light);effects.remove(l.s,l.reflection);l.light.dispose();l.s.material.dispose();l.reflection?.geometry.dispose();l.reflection?.material.dispose();lights.splice(i,1)}}
   if(auto){showTimer-=dt;if(showTimer<=0){choreograph(false);showTimer=rand(4.2,7.2)}}
   fps=fps*.94+(1/Math.max(dt,.001))*.06;if(++frames%40===0)document.getElementById('fps').textContent=Math.round(Math.min(99,fps))+' FPS';
 }
