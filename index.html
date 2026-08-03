@@ -16,7 +16,7 @@
   <div class="vignette"></div><div class="grain"></div>
 
   <header class="topbar">
-    <div class="brand"><span class="brand-mark"></span><span>HANABI</span></div>
+    <div class="brand"><span class="brand-mark"></span><span id="brandLabel">HANABI</span></div>
     <button class="festival-picker" id="festivalBtn"><span id="festivalPickerLabel">选择花火大会</span><b id="festivalName">长冈大花火</b><i>⌄</i></button>
     <div class="status"><span id="fps">60 FPS</span><i></i><span id="qualityLabel">ULTRA</span></div>
   </header>
@@ -76,7 +76,7 @@
   <div class="hint" id="hint"><span>＋</span><b id="hintLabel">点击任意位置</b></div>
 
   <nav class="camera-rail" id="cameraRail" aria-label="三维机位">
-    <span>3D CAMERA</span>
+    <span id="cameraRailLabel">3D CAMERA</span>
     <button class="active" data-camera="0"><i>01</i>湖面远景</button>
     <button data-camera="1"><i>02</i>水线滑轨</button>
     <button data-camera="2"><i>03</i>发射揭示</button>
@@ -85,12 +85,12 @@
     <button data-camera="5"><i>06</i>空中全景</button>
   </nav>
   <div class="camera-cut" id="cameraCut"><small>CAMERA 01</small><b>RIVERBANK</b></div>
-  <div class="scene-transition" id="sceneTransition"><small>NOW ENTERING</small><b>长冈大花火</b><span>信浓川 · 新潟</span><i></i></div>
+  <div class="scene-transition" id="sceneTransition"><small id="enteringLabel">NOW ENTERING</small><b>长冈大花火</b><span>信浓川 · 新潟</span><i></i></div>
   <div class="start-screen" id="startScreen">
     <div class="start-content">
       <div class="start-logo"><span></span></div>
       <p id="introTagline">沉浸式烟花体验</p>
-      <h2>HANABI</h2>
+      <h2 id="introBrandLabel">HANABI</h2>
       <div class="intro-festivals" id="introFestivals">
         <button class="active" data-intro-festival="nagaoka"><b>长冈</b><small>信浓川</small></button>
         <button data-intro-festival="omagari"><b>大曲</b><small>竞技花火</small></button>
