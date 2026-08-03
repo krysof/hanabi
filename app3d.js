@@ -63,7 +63,7 @@ function makeSky(){
 const waterUniforms={time:{value:0},accent:{value:new THREE.Color(0x25527b)}};
 function makeWater(){
   const geo=new THREE.PlaneGeometry(2400,3000,mobile?110:220,mobile?120:240);geo.rotateX(-Math.PI/2);
-  const mat=new THREE.ShaderMaterial({transparent:false,uniforms:waterUniforms,vertexShader:`uniform float time;varying vec3 vWorld;varying float vWave;void main(){vec3 p=position;float a=sin(p.x*.026+p.z*.011+time*.75);float b=sin(p.x*.061-p.z*.034-time*1.12);float c=sin(p.x*.13+p.z*.082+time*1.7);vWave=a*.52+b*.25+c*.08;p.y+=vWave;vWorld=p;gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.);}`,fragmentShader:`uniform vec3 accent;uniform float time;varying vec3 vWorld;varying float vWave;void main(){float depth=smoothstep(-1200.,700.,vWorld.z);float ripple=sin(vWorld.x*.055+vWorld.z*.023+sin(vWorld.z*.009)*1.8+time*.9)*.58+sin(vWorld.x*.11-vWorld.z*.047-time*1.4)*.28;float glint=pow(max(0.,ripple),28.)*.16;float horizon=pow(1.-depth,3.)*.08;vec3 deep=vec3(.004,.011,.022);vec3 near=accent*.17+vec3(.005,.011,.017);vec3 c=mix(deep,near,depth*.55)+accent*(vWave*.025)+vec3(.28,.42,.55)*(glint+horizon);gl_FragColor=vec4(c,1.);}`});
+  const mat=new THREE.ShaderMaterial({transparent:false,uniforms:waterUniforms,vertexShader:`uniform float time;varying vec3 vWorld;varying float vWave;void main(){vec3 p=position;float a=sin(p.x*.026+p.z*.011+time*.75);float b=sin(p.x*.061-p.z*.034-time*1.12);float c=sin(p.x*.13+p.z*.082+time*1.7);vWave=a*.52+b*.25+c*.08;p.y+=vWave;vWorld=(modelMatrix*vec4(p,1.)).xyz;gl_Position=projectionMatrix*viewMatrix*vec4(vWorld,1.);}`,fragmentShader:`uniform vec3 accent;uniform float time;varying vec3 vWorld;varying float vWave;void main(){float depth=smoothstep(-1200.,700.,vWorld.z);vec3 n=normalize(cross(dFdx(vWorld),dFdy(vWorld)));if(n.y<0.)n=-n;vec3 viewDir=normalize(cameraPosition-vWorld);float fresnel=pow(1.-max(0.,dot(n,viewDir)),3.);float ripple=sin(vWorld.x*.047+vWorld.z*.021+sin(vWorld.z*.008)*1.7+time*.9)*.54+sin(vWorld.x*.097-vWorld.z*.041-time*1.35)*.25;float glint=pow(max(0.,ripple),24.)*.11;float horizon=pow(1.-depth,3.)*.075;vec3 deep=vec3(.003,.010,.021);vec3 near=accent*.16+vec3(.005,.012,.019);vec3 sky=vec3(.055,.105,.17);vec3 c=mix(mix(deep,near,depth*.55),sky,fresnel*.48)+accent*(vWave*.022)+vec3(.25,.39,.54)*(glint+horizon);gl_FragColor=vec4(c,1.);}`});
   const m=new THREE.Mesh(geo,mat);m.position.y=-2;m.receiveShadow=true;world.add(m);
 }
 
@@ -126,12 +126,11 @@ function buildFestival(id){
   }else{
     const seed=id==='suwa'?5:id==='omagari'?3:1,base=id==='suwa'?42:id==='nagaoka'?32:29;
     terrain(seed,base,-720,0);terrain(seed+9,base*1.32,-1030,1);terrain(seed+21,base*1.7,-1370,2);
-    for(let x=-520;x<520;x+=rand(20,38)){box(x,0,rand(-390,-320),rand(14,30),rand(7,25),20);if(Math.random()<.75)lightDot(x,rand(7,20),-305,0xffbd73,1.2)}
-    if(id==='nagaoka'){const bridge=new THREE.Group();const deck=box(0,0,0,1,1,1);decor.remove(deck);const beam=new THREE.Mesh(new THREE.BoxGeometry(900,4,10),new THREE.MeshStandardMaterial({color:0x121b26,metalness:.5}));beam.position.y=18;bridge.add(beam);for(let x=-430;x<=430;x+=70){const p=new THREE.Mesh(new THREE.BoxGeometry(3,22,3),beam.material);p.position.set(x,7,0);bridge.add(p);const lamp=new THREE.PointLight(0xffc16e,.25,25);lamp.position.set(x,22,0);bridge.add(lamp)}bridge.position.z=-215;decor.add(bridge)}
-    if(id==='omagari'){for(let x=-400;x<400;x+=12)lightDot(x,5,-210,0xff925f,.9)}
+    // Rural festival horizons are defined by distant light scatter, not crude box buildings.
+    for(let i=0;i<(mobile?70:150);i++){const x=rand(-850,850),z=rand(-610,-470);lightDot(x,rand(1.2,5.5),z,Math.random()<.18?0xff8058:0xffc37a,rand(.35,1.05))}
+    if(id==='nagaoka'){for(let x=-620;x<620;x+=18)if(Math.random()>.24)lightDot(x,rand(2,4),-505,0xffd19a,rand(.35,.75))}
+    if(id==='omagari'){for(let x=-520;x<520;x+=10)lightDot(x,3,-470,0xff925f,.55)}
   }
-  // Foreground reeds and viewing silhouettes create genuine parallax during camera moves.
-  for(let i=0;i<80;i++){const h=rand(5,22),m=new THREE.Mesh(new THREE.CylinderGeometry(.08,.18,h,4),new THREE.MeshBasicMaterial({color:0x020407}));m.position.set(rand(-500,500),h/2,rand(80,260));decor.add(m)}
 }
 
 makeSky();makeWater();buildFestival(currentFestival);
