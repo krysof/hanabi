@@ -17,12 +17,18 @@
 
   <header class="topbar">
     <div class="brand"><span class="brand-mark"></span><span>HANABI</span></div>
-    <button class="festival-picker" id="festivalBtn"><span>选择花火大会</span><b id="festivalName">长冈大花火</b><i>⌄</i></button>
+    <button class="festival-picker" id="festivalBtn"><span id="festivalPickerLabel">选择花火大会</span><b id="festivalName">长冈大花火</b><i>⌄</i></button>
     <div class="status"><span id="fps">60 FPS</span><i></i><span id="qualityLabel">ULTRA</span></div>
   </header>
+  <div class="language-control" id="languageControl">
+    <button class="language-button" id="languageBtn" aria-label="Language"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.4 3 14.6 0 18M12 3c-3 3.4-3 14.6 0 18"/></svg></button>
+    <div class="language-menu" id="languageMenu">
+      <button data-lang="auto">◌ <b>自动 / Auto</b></button><button data-lang="ja">日 <b>日本語</b></button><button data-lang="en">EN <b>English</b></button><button data-lang="zhHant">繁 <b>繁體中文</b></button><button data-lang="yue">粵 <b>粵語</b></button><button data-lang="zhHans">简 <b>简体中文</b></button><button data-lang="ko">한 <b>한국어</b></button>
+    </div>
+  </div>
 
   <aside class="festival-menu" id="festivalMenu" aria-label="选择花火大会">
-    <p>SELECT FESTIVAL</p>
+    <p id="festivalMenuTitle">SELECT FESTIVAL</p>
     <button class="active" data-festival="nagaoka"><span>新潟</span><b>长冈祭大花火大会</b><small>信浓川 · 凤凰复兴花火</small></button>
     <button data-festival="omagari"><span>秋田</span><b>大曲全国花火竞技大会</b><small>雄物川 · 创作花火竞演</small></button>
     <button data-festival="sumida"><span>东京</span><b>隅田川花火大会</b><small>浅草 · 双会场都市夜景</small></button>
@@ -31,9 +37,9 @@
   </aside>
 
   <main class="hero">
-    <p class="eyebrow">INTERACTIVE FIREWORKS EXPERIENCE</p>
-    <h1>点亮，<em>这一刻。</em></h1>
-    <p class="subtitle">点击夜空发射烟花 · 拖动创造连发轨迹</p>
+    <p class="eyebrow" id="eyebrowText">INTERACTIVE FIREWORKS EXPERIENCE</p>
+    <h1 id="heroTitle">点亮，<em>这一刻。</em></h1>
+    <p class="subtitle" id="subtitleText">点击夜空发射烟花 · 拖动创造连发轨迹</p>
   </main>
 
   <section class="controls" aria-label="烟花控制台">
@@ -51,7 +57,7 @@
     </div>
     <div class="divider"></div>
     <div class="control-block palette-block custom-only">
-      <span class="label">焰色</span>
+      <span class="label" id="paletteLabel">焰色</span>
       <div class="palette" id="palette">
         <button class="swatch active" data-color="gold" style="--c:#ffd479" aria-label="鎏金"></button>
         <button class="swatch" data-color="sakura" style="--c:#ff7fae" aria-label="樱粉"></button>
@@ -61,12 +67,12 @@
       </div>
     </div>
     <div class="divider"></div>
-    <button class="icon-button" id="autoBtn" title="自动演出" aria-label="自动演出"><span class="play-icon">▶</span><small>演出</small></button>
-    <button class="icon-button active" id="soundBtn" title="声音" aria-label="声音"><span id="soundIcon">♪</span><small>声音</small></button>
+    <button class="icon-button" id="autoBtn" title="自动演出" aria-label="自动演出"><span class="play-icon">▶</span><small id="autoLabel">演出</small></button>
+    <button class="icon-button active" id="soundBtn" title="声音" aria-label="声音"><span id="soundIcon">♪</span><small id="soundLabel">声音</small></button>
   </section>
 
-  <button class="launch" id="launchBtn"><span class="launch-rings"></span><span class="rocket">↑</span><b>发射</b></button>
-  <div class="hint" id="hint"><span>＋</span> 点击任意位置</div>
+  <button class="launch" id="launchBtn"><span class="launch-rings"></span><span class="rocket">↑</span><b id="launchLabel">发射</b></button>
+  <div class="hint" id="hint"><span>＋</span><b id="hintLabel">点击任意位置</b></div>
 
   <nav class="camera-rail" id="cameraRail" aria-label="三维机位">
     <span>3D CAMERA</span>
@@ -78,10 +84,11 @@
     <button data-camera="5"><i>06</i>空中全景</button>
   </nav>
   <div class="camera-cut" id="cameraCut"><small>CAMERA 01</small><b>RIVERBANK</b></div>
+  <div class="scene-transition" id="sceneTransition"><small>NOW ENTERING</small><b>长冈大花火</b><span>信浓川 · 新潟</span><i></i></div>
   <div class="start-screen" id="startScreen">
     <div class="start-content">
       <div class="start-logo"><span></span></div>
-      <p>沉浸式烟花体验</p>
+      <p id="introTagline">沉浸式烟花体验</p>
       <h2>HANABI</h2>
       <div class="intro-festivals" id="introFestivals">
         <button class="active" data-intro-festival="nagaoka"><b>长冈</b><small>信浓川</small></button>
@@ -90,8 +97,8 @@
         <button data-intro-festival="suwa"><b>诹访湖</b><small>湖上花火</small></button>
         <button data-intro-festival="custom"><b>自定义</b><small>自由创作</small></button>
       </div>
-      <button id="enterBtn">进入夜空 <i>→</i></button>
-      <small>建议佩戴耳机 · 点击开启声音</small>
+      <button id="enterBtn"><span id="enterLabel">进入夜空</span> <i>→</i></button>
+      <small id="headphoneLabel">建议佩戴耳机 · 点击开启声音</small>
     </div>
   </div>
   <script type="module" src="/app3d.js"></script>
